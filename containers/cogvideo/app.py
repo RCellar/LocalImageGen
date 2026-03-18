@@ -53,7 +53,7 @@ def _get_pipeline(mode: str):
         quantize_(pipe.transformer, int8_weight_only())
         print("Applied INT8 quantization via torchao")
 
-    pipe.enable_model_cpu_offload()
+    pipe.enable_sequential_cpu_offload()
     pipe.vae.enable_slicing()
     pipe.vae.enable_tiling()
 
