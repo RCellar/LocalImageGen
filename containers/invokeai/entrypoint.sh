@@ -10,14 +10,6 @@ echo "=== InvokeAI Entrypoint ==="
 # Ensure the InvokeAI root directory exists
 mkdir -p "$INVOKEAI_ROOT"
 
-# Configure host and port via invokeai.yaml
-# InvokeAI reads these from its config file, not CLI args
-cat > "$INVOKEAI_ROOT/invokeai.yaml" <<EOF
-host: 0.0.0.0
-port: ${INVOKEAI_PORT}
-EOF
-echo "Configured InvokeAI: host=0.0.0.0 port=${INVOKEAI_PORT}"
-
 # List available image models from shared mount
 if [ -d "$MODELS_DIR" ]; then
     echo "Shared models directory contents:"
@@ -33,4 +25,5 @@ echo "==========================="
 
 # Execute the original InvokeAI entrypoint, which handles user setup
 # and then runs the CMD (invokeai-web)
+# InvokeAI defaults: host=0.0.0.0, port=9090 — no config file needed
 exec /opt/invokeai/docker-entrypoint.sh invokeai-web --root "$INVOKEAI_ROOT"
