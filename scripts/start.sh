@@ -147,8 +147,9 @@ if $GPU_CHECK_FAILED; then
                 $RUNTIME_CMD run -d --name localimggen-invokeai \
                     $CDI_DEVICE $SELINUX_OPT \
                     -p "${INVOKEAI_PORT:-9090}:${INVOKEAI_PORT:-9090}" \
-                    -v "${MODELS_DIR:-./models}:/models:ro" \
+                    -v "${MODELS_DIR:-./models}:/models" \
                     -v "${OUTPUTS_DIR:-./outputs}/images:/invokeai/outputs" \
+                    -v "localimagegen_invokeai-data:/invokeai" \
                     -v "./containers/invokeai/entrypoint.sh:/entrypoint-wrapper.sh:ro" \
                     -e "INVOKEAI_PORT=${INVOKEAI_PORT:-9090}" \
                     -e "INVOKEAI_ROOT=/invokeai" \
