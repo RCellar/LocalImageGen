@@ -215,4 +215,5 @@ demo.launch(
     server_name="0.0.0.0",
     server_port=PORT,
     share=False,
+    allowed_paths=[OUTPUT_DIR],
 )
