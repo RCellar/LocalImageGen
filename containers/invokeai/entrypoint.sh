@@ -3,32 +3,34 @@ set -euo pipefail
 
 MODELS_DIR="/models"
 INVOKEAI_ROOT="${INVOKEAI_ROOT:-/invokeai}"
+INVOKEAI_PORT="${INVOKEAI_PORT:-9090}"
 
 echo "=== InvokeAI Entrypoint ==="
 
 # Ensure the InvokeAI root directory exists
 mkdir -p "$INVOKEAI_ROOT"
 
-# Register models from shared mount using InvokeAI's model installer
+# Configure host and port via invokeai.yaml
+# InvokeAI reads these from its config file, not CLI args
+cat > "$INVOKEAI_ROOT/invokeai.yaml" <<EOF
+host: 0.0.0.0
+port: ${INVOKEAI_PORT}
+EOF
+echo "Configured InvokeAI: host=0.0.0.0 port=${INVOKEAI_PORT}"
+
+# List available image models from shared mount
 if [ -d "$MODELS_DIR" ]; then
-    echo "Scanning $MODELS_DIR for models to register..."
-    for model_dir in "$MODELS_DIR"/*/; do
-        model_name=$(basename "$model_dir")
-        if [ -f "$model_dir/model_index.json" ]; then
-            echo "  Registering model: $model_name from $model_dir"
-            # invokeai-model-install registers the model in InvokeAI's database
-            # --yes skips confirmation; if already registered, this is a no-op
-            invokeai-model-install --root "$INVOKEAI_ROOT" "$model_dir" --yes 2>/dev/null || \
-                echo "  Note: Could not auto-register $model_name — import via Model Manager UI"
-        fi
-    done
+    echo "Shared models directory contents:"
+    ls -1 "$MODELS_DIR" 2>/dev/null || echo "  (empty)"
+    echo ""
+    echo "Import models via the Model Manager UI at http://localhost:${INVOKEAI_PORT}"
+    echo "Point to /models/<model-name> to import shared models."
 else
     echo "WARNING: Shared models directory $MODELS_DIR not found"
 fi
 
-echo "Models can also be imported via the Model Manager UI at http://localhost:${INVOKEAI_PORT:-9090}"
 echo "==========================="
 
-# Execute the original InvokeAI entrypoint
-# The official image uses invokeai-web as its command
-exec invokeai-web --host 0.0.0.0 --port "${INVOKEAI_PORT:-9090}" --root "$INVOKEAI_ROOT"
+# Execute the original InvokeAI entrypoint, which handles user setup
+# and then runs the CMD (invokeai-web)
+exec /opt/invokeai/docker-entrypoint.sh invokeai-web --root "$INVOKEAI_ROOT"
