@@ -7,6 +7,72 @@ Local AI image and video generation running entirely offline in containers. No c
 - **InvokeAI** — Stable Diffusion 3.5 Medium for image generation (txt2img, img2img, inpainting, canvas, node editor)
 - **CogVideoX-5B** — Text-to-video and image-to-video generation with a Gradio UI
 
+## Architecture
+
+```mermaid
+graph TB
+    subgraph Host["Host Machine"]
+        config["config.yaml"]
+        scripts["scripts/"]
+        parse["parse-config.py"]
+        config --> parse
+        parse --> env[".env"]
+
+        subgraph Storage["Bind Mounts"]
+            models["models/
+            SD 3.5 Medium (~46GB)
+            CogVideoX-5B (~21GB)"]
+            img_out["outputs/images/"]
+            vid_out["outputs/videos/"]
+        end
+    end
+
+    subgraph Compose["Container Runtime (Podman / Docker)"]
+        subgraph InvokeAI["InvokeAI Container"]
+            invoke_ep["entrypoint.sh
+            (model registration)"]
+            invoke_svc["InvokeAI Web UI
+            :9090"]
+            invoke_vol[("invokeai-data
+            (named volume)")]
+            invoke_ep --> invoke_svc
+            invoke_svc --- invoke_vol
+        end
+
+        subgraph CogVideoX["CogVideoX Container"]
+            cog_app["app.py
+            (Gradio UI)"]
+            cog_svc["CogVideoX Web UI
+            :7860"]
+            cog_app --> cog_svc
+        end
+    end
+
+    subgraph GPU["NVIDIA GPU"]
+        cuda["CUDA 12.4"]
+    end
+
+    env --> Compose
+    models -- "read-write" --> InvokeAI
+    models -- "read-only" --> CogVideoX
+    img_out --- InvokeAI
+    vid_out --- CogVideoX
+    GPU -- "deploy reservation
+    or CDI fallback" --> InvokeAI
+    GPU -- "deploy reservation
+    or CDI fallback" --> CogVideoX
+
+    User((User)) -- "http://localhost:9090" --> invoke_svc
+    User -- "http://localhost:7860" --> cog_svc
+
+    style Host fill:#1a1a2e,stroke:#16213e,color:#e0e0e0
+    style Compose fill:#0f3460,stroke:#16213e,color:#e0e0e0
+    style Storage fill:#16213e,stroke:#1a1a2e,color:#e0e0e0
+    style InvokeAI fill:#1a3a5c,stroke:#4a90d9,color:#e0e0e0
+    style CogVideoX fill:#1a3a5c,stroke:#4a90d9,color:#e0e0e0
+    style GPU fill:#533483,stroke:#7b2d8e,color:#e0e0e0
+```
+
 ## Prerequisites
 
 | Requirement | Notes |
