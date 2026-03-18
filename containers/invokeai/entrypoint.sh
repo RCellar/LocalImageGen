@@ -10,6 +10,10 @@ echo "=== InvokeAI Entrypoint ==="
 # Ensure the InvokeAI root directory exists
 mkdir -p "$INVOKEAI_ROOT"
 
+# Set HuggingFace cache inside the InvokeAI root
+export HF_HOME="${HF_HOME:-$INVOKEAI_ROOT/.cache/huggingface}"
+export MPLCONFIGDIR="${MPLCONFIGDIR:-$INVOKEAI_ROOT/.matplotlib}"
+
 # List available image models from shared mount
 if [ -d "$MODELS_DIR" ]; then
     echo "Shared models directory contents:"
@@ -23,7 +27,7 @@ fi
 
 echo "==========================="
 
-# Execute the original InvokeAI entrypoint, which handles user setup
-# and then runs the CMD (invokeai-web)
-# InvokeAI defaults: host=0.0.0.0, port=9090 — no config file needed
-exec /opt/invokeai/docker-entrypoint.sh invokeai-web --root "$INVOKEAI_ROOT"
+# Run invokeai-web directly (we're already running as the correct user
+# via compose 'user:' directive, bypassing the official entrypoint's
+# chown/gosu which doesn't work in rootless podman)
+exec invokeai-web --root "$INVOKEAI_ROOT"

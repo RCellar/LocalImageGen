@@ -45,6 +45,8 @@ def main():
         f"COGVIDEO_PORT={cogvideo_svc.get('port', 7860)}",
         f"COGVIDEO_QUANTIZATION={cogvideo_svc.get('quantization', 'none')}",
         f"GPU_DEVICE={gpu.get('device', 0)}",
+        f"CONTAINER_UID={os.getuid()}",
+        f"CONTAINER_GID={os.getgid()}",
     ]
 
     with open(env_path, "w") as f:
