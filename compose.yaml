@@ -17,6 +17,8 @@ services:
       - INVOKEAI_ROOT=/invokeai
       - NVIDIA_VISIBLE_DEVICES=${GPU_DEVICE:-0}
     entrypoint: ["/bin/bash", "/entrypoint-wrapper.sh"]
+    security_opt:
+      - label=disable
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:${INVOKEAI_PORT:-9090}/api/v1/app/version"]
       interval: 30s
@@ -48,6 +50,8 @@ services:
       - COGVIDEO_PORT=${COGVIDEO_PORT:-7860}
       - COGVIDEO_QUANTIZATION=${COGVIDEO_QUANTIZATION:-none}
       - NVIDIA_VISIBLE_DEVICES=${GPU_DEVICE:-0}
+    security_opt:
+      - label=disable
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:${COGVIDEO_PORT:-7860}/"]
       interval: 30s

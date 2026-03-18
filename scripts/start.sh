@@ -143,12 +143,13 @@ if $GPU_CHECK_FAILED; then
     # podman-compose doesn't support --device via compose, so use environment hint
     export NVIDIA_VISIBLE_DEVICES=all
     CDI_DEVICE="--device nvidia.com/gpu=all"
+    SELINUX_OPT="--security-opt=label=disable"
 
     for profile in $PROFILES; do
         case "$profile" in
             image)
                 $RUNTIME_CMD run -d --name localimggen-invokeai \
-                    $CDI_DEVICE \
+                    $CDI_DEVICE $SELINUX_OPT \
                     -p "${INVOKEAI_PORT:-9090}:${INVOKEAI_PORT:-9090}" \
                     -v "${MODELS_DIR:-./models}:/models:ro" \
                     -v "${OUTPUTS_DIR:-./outputs}/images:/invokeai/outputs" \
@@ -161,7 +162,7 @@ if $GPU_CHECK_FAILED; then
                 ;;
             video)
                 $RUNTIME_CMD run -d --name localimggen-cogvideo \
-                    $CDI_DEVICE \
+                    $CDI_DEVICE $SELINUX_OPT \
                     -p "${COGVIDEO_PORT:-7860}:${COGVIDEO_PORT:-7860}" \
                     -v "${MODELS_DIR:-./models}:/models:ro" \
                     -v "${OUTPUTS_DIR:-./outputs}/videos:/outputs/videos" \
