@@ -8,7 +8,7 @@ services:
     ports:
       - "${INVOKEAI_PORT:-9090}:${INVOKEAI_PORT:-9090}"
     volumes:
-      - ${MODELS_DIR:-./models}:/models:ro
+      - ${MODELS_DIR:-./models}:/models
       - ${OUTPUTS_DIR:-./outputs}/images:/invokeai/outputs
       - invokeai-data:/invokeai
       - ./containers/invokeai/entrypoint.sh:/entrypoint-wrapper.sh:ro
