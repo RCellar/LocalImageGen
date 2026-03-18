@@ -194,23 +194,17 @@ with gr.Blocks(title="CogVideoX-5B — Local Video Generation") as demo:
                 outputs=[i2v_output],
             )
 
-# Gradio serves its UI at / which returns HTTP 200 — used as health check
-# In containers, Gradio's localhost self-check can fail even though the
-# server is reachable from outside. We catch that and keep running.
-import threading
-try:
-    demo.launch(
-        server_name="0.0.0.0",
-        server_port=PORT,
-        share=False,
-    )
-except ValueError as e:
-    if "shareable link" in str(e):
-        # Server is running but Gradio's self-check failed in the container.
-        # The server is still bound and serving — just keep the process alive.
-        print(f"Note: Gradio self-check failed (expected in containers): {e}")
-        print(f"Server is running on http://0.0.0.0:{PORT}")
-        # Block the main thread to keep the process alive
-        threading.Event().wait()
-    else:
-        raise
+# Gradio serves its UI at / which returns HTTP 200 — used as health check.
+# Use prevent_thread_lock=False and monkey-patch the URL check to avoid
+# the localhost accessibility test that fails in rootless containers.
+import gradio.networking
+_original_url_ok = gradio.networking.url_ok
+gradio.networking.url_ok = lambda url: True
+
+demo.launch(
+    server_name="0.0.0.0",
+    server_port=PORT,
+    share=False,
+)
+
+gradio.networking.url_ok = _original_url_ok
