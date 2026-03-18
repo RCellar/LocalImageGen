@@ -1,0 +1,67 @@
+#!/usr/bin/env python3
+"""Parse config.yaml and generate .env for compose."""
+
+import sys
+import os
+
+try:
+    import yaml
+except ImportError:
+    print("ERROR: PyYAML is required. Install with:")
+    print("  dnf install python3-pyyaml")
+    print("  # or: pip install pyyaml")
+    sys.exit(1)
+
+
+def main():
+    config_path = os.path.join(os.path.dirname(__file__), "..", "config.yaml")
+    env_path = os.path.join(os.path.dirname(__file__), "..", ".env")
+
+    if not os.path.exists(config_path):
+        print(f"ERROR: {config_path} not found.")
+        print("Run: cp config.example.yaml config.yaml")
+        sys.exit(1)
+
+    with open(config_path) as f:
+        config = yaml.safe_load(f)
+
+    # Validate required sections
+    for section in ("paths", "services", "gpu"):
+        if section not in config:
+            print(f"ERROR: Missing required section '{section}' in config.yaml")
+            sys.exit(1)
+
+    paths = config["paths"]
+    services = config["services"]
+    gpu = config["gpu"]
+
+    cogvideo_svc = services.get("cogvideo", {})
+    env_lines = [
+        "# Auto-generated from config.yaml — do not edit",
+        f"MODELS_DIR={paths.get('models', './models')}",
+        f"OUTPUTS_DIR={paths.get('outputs', './outputs')}",
+        f"INVOKEAI_PORT={services.get('invokeai', {}).get('port', 9090)}",
+        f"COGVIDEO_PORT={cogvideo_svc.get('port', 7860)}",
+        f"COGVIDEO_QUANTIZATION={cogvideo_svc.get('quantization', 'none')}",
+        f"GPU_DEVICE={gpu.get('device', 0)}",
+    ]
+
+    with open(env_path, "w") as f:
+        f.write("\n".join(env_lines) + "\n")
+
+    # Print profile flags for start.sh to consume
+    profiles = []
+    if services.get("invokeai", {}).get("enabled", False):
+        profiles.append("image")
+    if services.get("cogvideo", {}).get("enabled", False):
+        profiles.append("video")
+
+    if not profiles:
+        print("WARNING: No services enabled in config.yaml")
+    else:
+        # Output profiles as space-separated list on stdout
+        print(" ".join(profiles))
+
+
+if __name__ == "__main__":
+    main()

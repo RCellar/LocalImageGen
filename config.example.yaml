@@ -1,0 +1,28 @@
+paths:
+  models: ./models
+  outputs: ./outputs
+
+models:
+  sd3.5-medium:
+    repo: stabilityai/stable-diffusion-3.5-medium
+    type: image
+    gated: true
+    enabled: true
+  cogvideox-5b:
+    repo: THUDM/CogVideoX-5b
+    type: video
+    gated: false
+    enabled: true
+
+services:
+  invokeai:
+    port: 9090
+    enabled: true
+  cogvideo:
+    port: 7860
+    enabled: true
+    quantization: none  # none (BF16, ~5GB VRAM) or int8 (via torchao, ~4.4GB VRAM)
+
+gpu:
+  device: 0
+  runtime: auto  # auto, podman, or docker

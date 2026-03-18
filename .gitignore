@@ -1,0 +1,14 @@
+# User config (generated from example)
+config.yaml
+
+# Generated env file
+.env
+
+# Model weights (large, downloaded separately)
+models/
+
+# Generated content
+outputs/
+
+# Superpowers brainstorming artifacts
+.superpowers/
