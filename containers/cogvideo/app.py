@@ -195,11 +195,22 @@ with gr.Blocks(title="CogVideoX-5B — Local Video Generation") as demo:
             )
 
 # Gradio serves its UI at / which returns HTTP 200 — used as health check.
-# Patch url_ok to skip localhost self-check which fails in rootless podman
-# containers (Gradio tries to curl localhost after binding to 0.0.0.0).
+# Container workarounds:
+# 1. Patch url_ok: Gradio's localhost self-check fails in rootless podman
+# 2. Patch get_api_info: gradio_client crashes parsing diffusers pipeline
+#    JSON schemas (bool additionalProperties). Return minimal valid API info.
 import gradio.networking
 gradio.networking.url_ok = lambda url: True
 
+_original_get_api_info = demo.get_api_info
+def _safe_get_api_info():
+    try:
+        return _original_get_api_info()
+    except TypeError:
+        return {"named_endpoints": {}, "unnamed_endpoints": {}}
+demo.get_api_info = _safe_get_api_info
+
+demo.queue()
 demo.launch(
     server_name="0.0.0.0",
     server_port=PORT,
