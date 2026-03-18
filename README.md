@@ -45,7 +45,7 @@ This will:
 1. Verify all prerequisites are installed
 2. Create `config.yaml` from the template (if not present)
 3. Prompt for HuggingFace login if gated models are enabled (SD 3.5 Medium requires acceptance of the [Stability AI license](https://huggingface.co/stabilityai/stable-diffusion-3.5-medium))
-4. Download models (~16GB total)
+4. Download models (~67GB total: ~46GB for SD 3.5 Medium, ~21GB for CogVideoX-5B)
 5. Build/pull container images
 6. Run a GPU smoke test
 
@@ -170,7 +170,7 @@ To remove generated content:
 rm -rf outputs/*
 ```
 
-To fully reset (models will need to be re-downloaded):
+To fully reset (models ~67GB will need to be re-downloaded):
 
 ```bash
 rm -rf models/ outputs/ .env
