@@ -10,5 +10,6 @@ models/
 # Generated content
 outputs/
 
-# Superpowers brainstorming artifacts
+# Internal tooling
 .superpowers/
+.claude/
