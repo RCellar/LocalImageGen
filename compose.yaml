@@ -1,0 +1,66 @@
+# compose.yaml — works with podman-compose and docker-compose
+# Generated .env file provides: MODELS_DIR, OUTPUTS_DIR, INVOKEAI_PORT, COGVIDEO_PORT, GPU_DEVICE
+
+services:
+  invokeai:
+    image: ghcr.io/invoke-ai/invokeai
+    profiles: ["image", "all"]
+    ports:
+      - "${INVOKEAI_PORT:-9090}:${INVOKEAI_PORT:-9090}"
+    volumes:
+      - ${MODELS_DIR:-./models}:/models:ro
+      - ${OUTPUTS_DIR:-./outputs}/images:/invokeai/outputs
+      - invokeai-data:/invokeai
+      - ./containers/invokeai/entrypoint.sh:/entrypoint-wrapper.sh:ro
+    environment:
+      - INVOKEAI_PORT=${INVOKEAI_PORT:-9090}
+      - INVOKEAI_ROOT=/invokeai
+      - NVIDIA_VISIBLE_DEVICES=${GPU_DEVICE:-0}
+    entrypoint: ["/bin/bash", "/entrypoint-wrapper.sh"]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:${INVOKEAI_PORT:-9090}/api/v1/app/version"]
+      interval: 30s
+      timeout: 10s
+      start_period: 120s
+      retries: 3
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+  cogvideo:
+    build:
+      context: ./containers/cogvideo
+      dockerfile: Containerfile
+    image: cogvideo-local:latest
+    profiles: ["video", "all"]
+    ports:
+      - "${COGVIDEO_PORT:-7860}:${COGVIDEO_PORT:-7860}"
+    volumes:
+      - ${MODELS_DIR:-./models}:/models:ro
+      - ${OUTPUTS_DIR:-./outputs}/videos:/outputs/videos
+    environment:
+      - MODEL_PATH=/models/cogvideox-5b
+      - OUTPUT_DIR=/outputs/videos
+      - COGVIDEO_PORT=${COGVIDEO_PORT:-7860}
+      - COGVIDEO_QUANTIZATION=${COGVIDEO_QUANTIZATION:-none}
+      - NVIDIA_VISIBLE_DEVICES=${GPU_DEVICE:-0}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:${COGVIDEO_PORT:-7860}/"]
+      interval: 30s
+      timeout: 10s
+      start_period: 120s
+      retries: 3
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+volumes:
+  invokeai-data:
