@@ -19,10 +19,10 @@ require_runtime() {
     local cmd
     cmd=$(detect_runtime)
     if [ -z "$cmd" ]; then
-        echo "ERROR: No container compose runtime found. Install one of:"
-        echo "  dnf install podman-compose"
-        echo "  # or: https://docs.docker.com/compose/install/"
-        exit 1
+        echo "ERROR: No container compose runtime found. Install one of:" >&2
+        echo "  dnf install podman-compose" >&2
+        echo "  # or: https://docs.docker.com/compose/install/" >&2
+        return 1
     fi
     echo "$cmd"
 }

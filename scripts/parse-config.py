@@ -7,19 +7,20 @@ import os
 try:
     import yaml
 except ImportError:
-    print("ERROR: PyYAML is required. Install with:")
-    print("  dnf install python3-pyyaml")
-    print("  # or: pip install pyyaml")
+    print("ERROR: PyYAML is required. Install with:", file=sys.stderr)
+    print("  dnf install python3-pyyaml", file=sys.stderr)
+    print("  # or: pip install pyyaml", file=sys.stderr)
     sys.exit(1)
 
 
 def main():
-    config_path = os.path.join(os.path.dirname(__file__), "..", "config.yaml")
-    env_path = os.path.join(os.path.dirname(__file__), "..", ".env")
+    script_dir = os.path.dirname(os.path.realpath(__file__))
+    config_path = os.path.join(script_dir, "..", "config.yaml")
+    env_path = os.path.join(script_dir, "..", ".env")
 
     if not os.path.exists(config_path):
-        print(f"ERROR: {config_path} not found.")
-        print("Run: cp config.example.yaml config.yaml")
+        print(f"ERROR: {config_path} not found.", file=sys.stderr)
+        print("Run: cp config.example.yaml config.yaml", file=sys.stderr)
         sys.exit(1)
 
     with open(config_path) as f:
@@ -28,7 +29,7 @@ def main():
     # Validate required sections
     for section in ("paths", "services", "gpu"):
         if section not in config:
-            print(f"ERROR: Missing required section '{section}' in config.yaml")
+            print(f"ERROR: Missing required section '{section}' in config.yaml", file=sys.stderr)
             sys.exit(1)
 
     paths = config["paths"]
@@ -57,7 +58,7 @@ def main():
         profiles.append("video")
 
     if not profiles:
-        print("WARNING: No services enabled in config.yaml")
+        print("WARNING: No services enabled in config.yaml", file=sys.stderr)
     else:
         # Output profiles as space-separated list on stdout
         print(" ".join(profiles))
