@@ -27,7 +27,8 @@ fi
 
 echo "==========================="
 
-# Run invokeai-web directly (we're already running as the correct user
-# via compose 'user:' directive, bypassing the official entrypoint's
-# chown/gosu which doesn't work in rootless podman)
+# Run invokeai-web directly as container root.
+# In rootless podman, container root = host user (no privilege escalation).
+# This avoids the UID mapping issues with bind mounts that make files
+# appear owned by different UIDs inside the container.
 exec invokeai-web --root "$INVOKEAI_ROOT"

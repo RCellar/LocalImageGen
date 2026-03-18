@@ -17,7 +17,6 @@ services:
       - INVOKEAI_ROOT=/invokeai
       - NVIDIA_VISIBLE_DEVICES=${GPU_DEVICE:-0}
     entrypoint: ["/bin/bash", "/entrypoint-wrapper.sh"]
-    user: "${CONTAINER_UID:-1000}:${CONTAINER_GID:-1000}"
     security_opt:
       - label=disable
     healthcheck:
