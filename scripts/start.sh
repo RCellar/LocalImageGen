@@ -116,18 +116,14 @@ $COMPOSE_CMD $PROFILE_FLAGS up -d
 # Check if a running container can see the GPU
 RUNTIME_CMD="${COMPOSE_CMD%% *}"  # extract "podman" or "docker"
 GPU_CHECK_FAILED=false
-for profile in $PROFILES; do
-    case "$profile" in
-        video)
-            CONTAINER_NAME=$($COMPOSE_CMD ps --format '{{.Name}}' 2>/dev/null | grep cogvideo | head -1)
-            if [ -n "$CONTAINER_NAME" ]; then
-                if ! $RUNTIME_CMD exec "$CONTAINER_NAME" nvidia-smi &>/dev/null 2>&1; then
-                    GPU_CHECK_FAILED=true
-                fi
-            fi
-            ;;
-    esac
-done
+# Check GPU access in any running container — use python torch check since
+# not all images have nvidia-smi (InvokeAI doesn't)
+CONTAINER_NAME=$($COMPOSE_CMD ps --format '{{.Name}}' 2>/dev/null | head -1)
+if [ -n "$CONTAINER_NAME" ]; then
+    if ! $RUNTIME_CMD exec "$CONTAINER_NAME" python3 -c "import torch; assert torch.cuda.is_available()" &>/dev/null 2>&1; then
+        GPU_CHECK_FAILED=true
+    fi
+fi
 
 if $GPU_CHECK_FAILED; then
     echo ""
