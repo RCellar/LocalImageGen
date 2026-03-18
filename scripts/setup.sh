@@ -123,12 +123,12 @@ $RUNTIME_CMD build -t cogvideo-local:latest containers/cogvideo/
 # --- GPU smoke test ---
 echo ""
 echo "=== GPU smoke test ==="
-if $RUNTIME_CMD run --rm --device nvidia.com/gpu=all nvidia/cuda:12.4.1-base-ubuntu22.04 nvidia-smi &>/dev/null; then
+if $RUNTIME_CMD run --rm --device nvidia.com/gpu=all docker.io/nvidia/cuda:12.4.1-base-ubuntu22.04 nvidia-smi &>/dev/null; then
     echo "  [OK] GPU accessible inside containers"
 else
     echo "  [WARN] GPU smoke test failed."
     echo "  Trying with --gpus all flag..."
-    if $RUNTIME_CMD run --rm --gpus all nvidia/cuda:12.4.1-base-ubuntu22.04 nvidia-smi &>/dev/null; then
+    if $RUNTIME_CMD run --rm --gpus all docker.io/nvidia/cuda:12.4.1-base-ubuntu22.04 nvidia-smi &>/dev/null; then
         echo "  [OK] GPU accessible with --gpus all (deploy block may work)"
     else
         echo "  [FAIL] Cannot access GPU inside containers."
@@ -136,7 +136,7 @@ else
         echo "  Troubleshooting:"
         echo "    1. Check NVIDIA Container Toolkit: nvidia-ctk --version"
         echo "    2. Generate CDI spec: sudo nvidia-ctk cdi generate --output=/etc/cdi/nvidia.yaml"
-        echo "    3. Verify CDI: $RUNTIME_CMD run --rm --device nvidia.com/gpu=all nvidia/cuda:12.4.1-base-ubuntu22.04 nvidia-smi"
+        echo "    3. Verify CDI: $RUNTIME_CMD run --rm --device nvidia.com/gpu=all docker.io/nvidia/cuda:12.4.1-base-ubuntu22.04 nvidia-smi"
         echo ""
         echo "  Driver version: $(nvidia-smi --query-gpu=driver_version --format=csv,noheader 2>/dev/null || echo 'unknown')"
         echo "  CUDA version: $(nvidia-smi --query-gpu=compute_cap --format=csv,noheader 2>/dev/null || echo 'unknown')"
