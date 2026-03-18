@@ -187,12 +187,12 @@ while [ $ELAPSED -lt $TIMEOUT ]; do
     for profile in $PROFILES; do
         case "$profile" in
             image)
-                if ! curl -sf "http://localhost:${INVOKEAI_PORT}/api/v1/app/version" &>/dev/null; then
+                if ! curl -4sf "http://localhost:${INVOKEAI_PORT}/api/v1/app/version" &>/dev/null; then
                     ALL_HEALTHY=false
                 fi
                 ;;
             video)
-                if ! curl -sf "http://localhost:${COGVIDEO_PORT}/" &>/dev/null; then
+                if ! curl -4sf "http://localhost:${COGVIDEO_PORT}/" &>/dev/null; then
                     ALL_HEALTHY=false
                 fi
                 ;;
