@@ -196,7 +196,15 @@ podman volume rm localimagegen_invokeai-data
 # or: docker volume rm localimagegen_invokeai-data
 ```
 
+## License
+
+This project is licensed under the [MIT License](LICENSE).
+
 ## Model Licenses
+
+The models downloaded by this project have their own licenses with specific terms and restrictions. By using this project, you are responsible for reviewing and complying with each model's license:
 
 - **Stable Diffusion 3.5 Medium** — [Stability AI Community License](https://huggingface.co/stabilityai/stable-diffusion-3.5-medium). Free for research and non-commercial use; commercial use free under $1M revenue/year.
 - **CogVideoX-5B** — [CogVideoX License](https://huggingface.co/THUDM/CogVideoX-5b). Free for academic research; commercial use requires registration.
+
+This project does not bundle or redistribute any models or container images — they are downloaded directly from their respective sources at setup time.
