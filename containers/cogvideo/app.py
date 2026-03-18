@@ -7,7 +7,8 @@ import time
 import torch
 import gradio as gr
 from diffusers import CogVideoXPipeline, CogVideoXImageToVideoPipeline
-from diffusers.utils import export_to_video
+import imageio
+import numpy as np
 
 MODEL_PATH = os.environ.get("MODEL_PATH", "/models/cogvideox-5b")
 OUTPUT_DIR = os.environ.get("OUTPUT_DIR", "/outputs/videos")
@@ -15,6 +16,23 @@ PORT = int(os.environ.get("COGVIDEO_PORT", "7860"))
 QUANTIZATION = os.environ.get("COGVIDEO_QUANTIZATION", "none")  # "none" or "int8"
 
 os.makedirs(OUTPUT_DIR, exist_ok=True)
+
+
+def save_video(frames, output_path, fps=8):
+    """Save video frames as H.264 MP4 for browser/Discord compatibility."""
+    writer = imageio.get_writer(
+        output_path,
+        fps=fps,
+        codec="libx264",
+        output_params=["-pix_fmt", "yuv420p"],
+    )
+    for frame in frames:
+        if hasattr(frame, "numpy"):
+            frame = frame.numpy()
+        if isinstance(frame, np.floating):
+            frame = (frame * 255).astype(np.uint8)
+        writer.append_data(np.array(frame))
+    writer.close()
 
 # Pipeline manager — loads one pipeline at a time to fit in VRAM
 # Both pipelines share the same base model weights (~5GB BF16),
@@ -91,7 +109,7 @@ def generate_txt2vid(
 
     timestamp = int(time.time())
     output_path = os.path.join(OUTPUT_DIR, f"txt2vid_{timestamp}.mp4")
-    export_to_video(video_frames, output_path, fps=8)
+    save_video(video_frames, output_path, fps=8)
 
     return output_path
 
@@ -121,7 +139,7 @@ def generate_img2vid(
 
     timestamp = int(time.time())
     output_path = os.path.join(OUTPUT_DIR, f"img2vid_{timestamp}.mp4")
-    export_to_video(video_frames, output_path, fps=8)
+    save_video(video_frames, output_path, fps=8)
 
     return output_path
 
