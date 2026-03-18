@@ -195,16 +195,16 @@ with gr.Blocks(title="CogVideoX-5B — Local Video Generation") as demo:
             )
 
 # Gradio serves its UI at / which returns HTTP 200 — used as health check.
-# Use prevent_thread_lock=False and monkey-patch the URL check to avoid
-# the localhost accessibility test that fails in rootless containers.
+# Two workarounds needed for container environments:
+# 1. Patch url_ok to skip localhost self-check (fails in rootless podman)
+# 2. Disable API info generation (gradio_client has a TypeError bug when
+#    parsing diffusers pipeline JSON schemas with boolean additionalProperties)
 import gradio.networking
-_original_url_ok = gradio.networking.url_ok
 gradio.networking.url_ok = lambda url: True
 
 demo.launch(
     server_name="0.0.0.0",
     server_port=PORT,
     share=False,
+    show_api=False,
 )
-
-gradio.networking.url_ok = _original_url_ok
