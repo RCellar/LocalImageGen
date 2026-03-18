@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """CogVideoX-5B Gradio UI for local video generation (txt2vid + img2vid)."""
 
+import gc
 import os
 import time
 import torch
 import gradio as gr
 from diffusers import CogVideoXPipeline, CogVideoXImageToVideoPipeline
-from diffusers.utils import export_to_video, load_image
+from diffusers.utils import export_to_video
 
 MODEL_PATH = os.environ.get("MODEL_PATH", "/models/cogvideox-5b")
 OUTPUT_DIR = os.environ.get("OUTPUT_DIR", "/outputs/videos")
@@ -15,37 +16,58 @@ QUANTIZATION = os.environ.get("COGVIDEO_QUANTIZATION", "none")  # "none" or "int
 
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
+# Pipeline manager — loads one pipeline at a time to fit in VRAM
+# Both pipelines share the same base model weights (~5GB BF16),
+# but loading both simultaneously doubles VRAM usage.
+_current_pipe = None
+_current_mode = None
+
+
+def _get_pipeline(mode: str):
+    """Load the requested pipeline, swapping out the current one if different."""
+    global _current_pipe, _current_mode
+
+    if _current_mode == mode and _current_pipe is not None:
+        return _current_pipe
+
+    # Unload current pipeline
+    if _current_pipe is not None:
+        print(f"Unloading {_current_mode} pipeline...")
+        _current_pipe.to("cpu")
+        del _current_pipe
+        gc.collect()
+        torch.cuda.empty_cache()
+
+    print(f"Loading {mode} pipeline from {MODEL_PATH}...")
+    if mode == "txt2vid":
+        pipe = CogVideoXPipeline.from_pretrained(
+            MODEL_PATH, torch_dtype=torch.bfloat16,
+        )
+    else:
+        pipe = CogVideoXImageToVideoPipeline.from_pretrained(
+            MODEL_PATH, torch_dtype=torch.bfloat16,
+        )
+
+    if QUANTIZATION == "int8":
+        from torchao.quantization import quantize_, int8_weight_only
+        quantize_(pipe.transformer, int8_weight_only())
+        print("Applied INT8 quantization via torchao")
+
+    pipe.to("cuda")
+    pipe.vae.enable_slicing()
+    pipe.vae.enable_tiling()
+
+    _current_pipe = pipe
+    _current_mode = mode
+    print(f"{mode} pipeline loaded successfully.")
+    return pipe
+
+
+# Pre-load txt2vid on startup
 print(f"Loading CogVideoX-5B from {MODEL_PATH}...")
 print(f"Quantization: {QUANTIZATION}")
-
-# Load text-to-video pipeline
-txt2vid_pipe = CogVideoXPipeline.from_pretrained(
-    MODEL_PATH,
-    torch_dtype=torch.bfloat16,
-)
-
-# Load image-to-video pipeline (shares most components)
-img2vid_pipe = CogVideoXImageToVideoPipeline.from_pretrained(
-    MODEL_PATH,
-    torch_dtype=torch.bfloat16,
-)
-
-# Apply INT8 quantization if configured
-if QUANTIZATION == "int8":
-    from torchao.quantization import quantize_, int8_weight_only
-    quantize_(txt2vid_pipe.transformer, int8_weight_only())
-    quantize_(img2vid_pipe.transformer, int8_weight_only())
-    print("Applied INT8 quantization via torchao")
-
-txt2vid_pipe.to("cuda")
-txt2vid_pipe.vae.enable_slicing()
-txt2vid_pipe.vae.enable_tiling()
-
-img2vid_pipe.to("cuda")
-img2vid_pipe.vae.enable_slicing()
-img2vid_pipe.vae.enable_tiling()
-
-print("Models loaded successfully.")
+_get_pipeline("txt2vid")
+print("Model loaded successfully.")
 
 
 def generate_txt2vid(
@@ -58,7 +80,8 @@ def generate_txt2vid(
     if not prompt.strip():
         raise gr.Error("Please enter a prompt.")
 
-    video_frames = txt2vid_pipe(
+    pipe = _get_pipeline("txt2vid")
+    video_frames = pipe(
         prompt=prompt,
         num_videos_per_prompt=1,
         num_inference_steps=num_inference_steps,
@@ -86,8 +109,8 @@ def generate_img2vid(
     if not prompt.strip():
         raise gr.Error("Please enter a prompt.")
 
-    # Gradio provides PIL Image directly
-    video_frames = img2vid_pipe(
+    pipe = _get_pipeline("img2vid")
+    video_frames = pipe(
         image=image,
         prompt=prompt,
         num_videos_per_prompt=1,
