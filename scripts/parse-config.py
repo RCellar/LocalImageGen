@@ -44,6 +44,7 @@ def main():
         f"INVOKEAI_PORT={services.get('invokeai', {}).get('port', 9090)}",
         f"COGVIDEO_PORT={cogvideo_svc.get('port', 7860)}",
         f"COGVIDEO_QUANTIZATION={cogvideo_svc.get('quantization', 'none')}",
+        f"I2V_MODEL_PATH={paths.get('models', './models')}/cogvideox-5b-i2v",
         f"GPU_DEVICE={gpu.get('device', 0)}",
         f"CONTAINER_UID={os.getuid()}",
         f"CONTAINER_GID={os.getgid()}",
