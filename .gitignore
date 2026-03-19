@@ -13,3 +13,4 @@ outputs/
 # Internal tooling
 .superpowers/
 .claude/
+docs/superpowers/
