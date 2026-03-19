@@ -10,6 +10,9 @@ echo "=== InvokeAI Entrypoint ==="
 # Ensure the InvokeAI root directory exists
 mkdir -p "$INVOKEAI_ROOT"
 
+# Pre-create output directories InvokeAI expects
+mkdir -p "$INVOKEAI_ROOT/outputs"
+
 # Set HuggingFace cache inside the InvokeAI root
 export HF_HOME="${HF_HOME:-$INVOKEAI_ROOT/.cache/huggingface}"
 export MPLCONFIGDIR="${MPLCONFIGDIR:-$INVOKEAI_ROOT/.matplotlib}"
