@@ -5,6 +5,14 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$PROJECT_DIR"
 
+# Parse command-line flags
+START_ALL=false
+for arg in "$@"; do
+    case "$arg" in
+        --all) START_ALL=true ;;
+    esac
+done
+
 # Source shared runtime detection
 source "$SCRIPT_DIR/lib/runtime.sh"
 
@@ -76,12 +84,28 @@ if command -v nvidia-smi &>/dev/null; then
         echo "Consider closing GPU-intensive applications first."
     fi
 
-    # Warn about co-residency if both services enabled
+    # Interactive service selection when both are enabled
     if echo "$PROFILES" | grep -q "image" && echo "$PROFILES" | grep -q "video"; then
-        echo "WARNING: Both image and video services enabled."
-        echo "Combined VRAM usage (~11GB+) may be unstable. Consider running one at a time."
-    fi
-fi
+        if ! $START_ALL; then
+            echo ""
+            echo "Both InvokeAI and CogVideoX are enabled in config.yaml."
+            echo "Running both simultaneously requires ~11GB+ VRAM."
+            echo ""
+            echo "Which services would you like to start?"
+            echo "  1) InvokeAI only (image generation)"
+            echo "  2) CogVideoX only (video generation)"
+            echo "  3) Both (requires sufficient VRAM)"
+            echo ""
+            read -rp "Choice [1/2/3]: " choice
+            case "$choice" in
+                1) PROFILES="image" ;;
+                2) PROFILES="video" ;;
+                3) ;; # keep both
+                *) echo "Invalid choice. Starting both." ;;
+            esac
+        fi  # end if ! $START_ALL
+    fi  # end if both profiles enabled
+fi  # end if command -v nvidia-smi
 
 # --- Check for downloaded models ---
 for profile in $PROFILES; do
@@ -96,6 +120,9 @@ for profile in $PROFILES; do
             if [ ! -d "$MODELS_DIR/cogvideox-5b" ]; then
                 echo "WARNING: No video models found. CogVideoX will fail to start."
                 echo "Run: scripts/download-models.sh"
+            fi
+            if [ ! -d "$MODELS_DIR/cogvideox-5b-i2v" ]; then
+                echo "WARNING: I2V model not found. Image-to-Video will be disabled."
             fi
             ;;
     esac
@@ -146,9 +173,8 @@ if $GPU_CHECK_FAILED; then
             image)
                 $RUNTIME_CMD run -d --name localimggen-invokeai \
                     $CDI_DEVICE $SELINUX_OPT \
-                    -p "${INVOKEAI_PORT:-9090}:${INVOKEAI_PORT:-9090}" \
+                    --network=host \
                     -v "${MODELS_DIR:-./models}:/models" \
-                    -v "${OUTPUTS_DIR:-./outputs}/images:/invokeai/outputs" \
                     -v "localimagegen_invokeai-data:/invokeai" \
                     -v "./containers/invokeai/entrypoint.sh:/entrypoint-wrapper.sh:ro" \
                     -e "INVOKEAI_PORT=${INVOKEAI_PORT:-9090}" \
@@ -160,10 +186,11 @@ if $GPU_CHECK_FAILED; then
             video)
                 $RUNTIME_CMD run -d --name localimggen-cogvideo \
                     $CDI_DEVICE $SELINUX_OPT \
-                    -p "${COGVIDEO_PORT:-7860}:${COGVIDEO_PORT:-7860}" \
+                    --network=host \
                     -v "${MODELS_DIR:-./models}:/models:ro" \
                     -v "${OUTPUTS_DIR:-./outputs}/videos:/outputs/videos" \
                     -e "MODEL_PATH=/models/cogvideox-5b" \
+                    -e "I2V_MODEL_PATH=/models/cogvideox-5b-i2v" \
                     -e "OUTPUT_DIR=/outputs/videos" \
                     -e "COGVIDEO_PORT=${COGVIDEO_PORT:-7860}" \
                     -e "COGVIDEO_QUANTIZATION=${COGVIDEO_QUANTIZATION:-none}" \
