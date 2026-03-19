@@ -9,11 +9,17 @@ import gradio as gr
 from diffusers import CogVideoXPipeline, CogVideoXImageToVideoPipeline
 import imageio
 import numpy as np
+from PIL import Image
 
 MODEL_PATH = os.environ.get("MODEL_PATH", "/models/cogvideox-5b")
 OUTPUT_DIR = os.environ.get("OUTPUT_DIR", "/outputs/videos")
 PORT = int(os.environ.get("COGVIDEO_PORT", "7860"))
 QUANTIZATION = os.environ.get("COGVIDEO_QUANTIZATION", "none")  # "none" or "int8"
+I2V_MODEL_PATH = os.environ.get("I2V_MODEL_PATH", "/models/cogvideox-5b-i2v")
+
+# Check if I2V model is available (has model_index.json or config.json)
+I2V_AVAILABLE = os.path.isfile(os.path.join(I2V_MODEL_PATH, "model_index.json")) or \
+                os.path.isfile(os.path.join(I2V_MODEL_PATH, "config.json"))
 
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
@@ -56,14 +62,15 @@ def _get_pipeline(mode: str):
         gc.collect()
         torch.cuda.empty_cache()
 
-    print(f"Loading {mode} pipeline from {MODEL_PATH}...")
+    model_path = I2V_MODEL_PATH if mode == "img2vid" else MODEL_PATH
+    print(f"Loading {mode} pipeline from {model_path}...")
     if mode == "txt2vid":
         pipe = CogVideoXPipeline.from_pretrained(
-            MODEL_PATH, torch_dtype=torch.bfloat16,
+            model_path, torch_dtype=torch.bfloat16,
         )
     else:
         pipe = CogVideoXImageToVideoPipeline.from_pretrained(
-            MODEL_PATH, torch_dtype=torch.bfloat16,
+            model_path, torch_dtype=torch.bfloat16,
         )
 
     if QUANTIZATION == "int8":
@@ -98,14 +105,21 @@ def generate_txt2vid(
     if not prompt.strip():
         raise gr.Error("Please enter a prompt.")
 
-    pipe = _get_pipeline("txt2vid")
-    video_frames = pipe(
-        prompt=prompt,
-        num_videos_per_prompt=1,
-        num_inference_steps=num_inference_steps,
-        num_frames=num_frames,
-        guidance_scale=guidance_scale,
-    ).frames[0]
+    try:
+        pipe = _get_pipeline("txt2vid")
+        video_frames = pipe(
+            prompt=prompt,
+            num_videos_per_prompt=1,
+            num_inference_steps=num_inference_steps,
+            num_frames=num_frames,
+            guidance_scale=guidance_scale,
+        ).frames[0]
+    except torch.cuda.OutOfMemoryError:
+        raise gr.Error("GPU out of memory. Try reducing inference steps or frame count, or close other GPU applications.")
+    except Exception as e:
+        if "out of memory" in str(e).lower():
+            raise gr.Error("GPU out of memory. Try reducing inference steps or frame count, or close other GPU applications.")
+        raise gr.Error(f"Generation failed: {e}")
 
     timestamp = int(time.time())
     output_path = os.path.join(OUTPUT_DIR, f"txt2vid_{timestamp}.mp4")
@@ -127,15 +141,28 @@ def generate_img2vid(
     if not prompt.strip():
         raise gr.Error("Please enter a prompt.")
 
-    pipe = _get_pipeline("img2vid")
-    video_frames = pipe(
-        image=image,
-        prompt=prompt,
-        num_videos_per_prompt=1,
-        num_inference_steps=num_inference_steps,
-        num_frames=num_frames,
-        guidance_scale=guidance_scale,
-    ).frames[0]
+    # Resize to CogVideoX-5B I2V expected dimensions (480x720)
+    target_size = (720, 480)  # PIL uses (width, height)
+    if image.size != target_size:
+        print(f"Resizing input image from {image.size} to {target_size}")
+        image = image.resize(target_size, Image.LANCZOS)
+
+    try:
+        pipe = _get_pipeline("img2vid")
+        video_frames = pipe(
+            image=image,
+            prompt=prompt,
+            num_videos_per_prompt=1,
+            num_inference_steps=num_inference_steps,
+            num_frames=num_frames,
+            guidance_scale=guidance_scale,
+        ).frames[0]
+    except torch.cuda.OutOfMemoryError:
+        raise gr.Error("GPU out of memory. Try reducing inference steps or frame count, or close other GPU applications.")
+    except Exception as e:
+        if "out of memory" in str(e).lower():
+            raise gr.Error("GPU out of memory. Try reducing inference steps or frame count, or close other GPU applications.")
+        raise gr.Error(f"Generation failed: {e}")
 
     timestamp = int(time.time())
     output_path = os.path.join(OUTPUT_DIR, f"img2vid_{timestamp}.mp4")
@@ -181,36 +208,42 @@ with gr.Blocks(title="CogVideoX-5B — Local Video Generation") as demo:
             )
 
         with gr.TabItem("Image to Video"):
-            with gr.Row():
-                with gr.Column(scale=2):
-                    i2v_image = gr.Image(label="Starting Image", type="pil")
-                    i2v_prompt = gr.Textbox(
-                        label="Prompt",
-                        placeholder="The scene slowly comes to life...",
-                        lines=3,
-                    )
-                    with gr.Row():
-                        i2v_steps = gr.Slider(
-                            minimum=10, maximum=100, value=50, step=1,
-                            label="Inference Steps",
+            if I2V_AVAILABLE:
+                with gr.Row():
+                    with gr.Column(scale=2):
+                        i2v_image = gr.Image(label="Starting Image", type="pil")
+                        i2v_prompt = gr.Textbox(
+                            label="Prompt",
+                            placeholder="The scene slowly comes to life...",
+                            lines=3,
                         )
-                        i2v_guidance = gr.Slider(
-                            minimum=1.0, maximum=15.0, value=6.0, step=0.5,
-                            label="Guidance Scale",
-                        )
-                        i2v_frames = gr.Slider(
-                            minimum=9, maximum=49, value=49, step=8,
-                            label="Number of Frames",
-                        )
-                    i2v_btn = gr.Button("Generate Video", variant="primary")
-                with gr.Column(scale=2):
-                    i2v_output = gr.Video(label="Generated Video")
+                        with gr.Row():
+                            i2v_steps = gr.Slider(
+                                minimum=10, maximum=100, value=50, step=1,
+                                label="Inference Steps",
+                            )
+                            i2v_guidance = gr.Slider(
+                                minimum=1.0, maximum=15.0, value=6.0, step=0.5,
+                                label="Guidance Scale",
+                            )
+                            i2v_frames = gr.Slider(
+                                minimum=9, maximum=49, value=49, step=8,
+                                label="Number of Frames",
+                            )
+                        i2v_btn = gr.Button("Generate Video", variant="primary")
+                    with gr.Column(scale=2):
+                        i2v_output = gr.Video(label="Generated Video")
 
-            i2v_btn.click(
-                fn=generate_img2vid,
-                inputs=[i2v_image, i2v_prompt, i2v_steps, i2v_guidance, i2v_frames],
-                outputs=[i2v_output],
-            )
+                i2v_btn.click(
+                    fn=generate_img2vid,
+                    inputs=[i2v_image, i2v_prompt, i2v_steps, i2v_guidance, i2v_frames],
+                    outputs=[i2v_output],
+                )
+            else:
+                gr.Markdown(
+                    "**Image-to-Video model not downloaded.** "
+                    "Run `scripts/setup.sh` to download the CogVideoX-5B I2V model."
+                )
 
 # Gradio serves its UI at / which returns HTTP 200 — used as health check.
 # Container workarounds:
