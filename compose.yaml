@@ -46,6 +46,7 @@ services:
       - ${OUTPUTS_DIR:-./outputs}/videos:/outputs/videos
     environment:
       - MODEL_PATH=/models/cogvideox-5b
+      - I2V_MODEL_PATH=/models/cogvideox-5b-i2v
       - OUTPUT_DIR=/outputs/videos
       - COGVIDEO_PORT=${COGVIDEO_PORT:-7860}
       - COGVIDEO_QUANTIZATION=${COGVIDEO_QUANTIZATION:-none}
