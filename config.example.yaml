@@ -13,6 +13,11 @@ models:
     type: video
     gated: false
     enabled: true
+  cogvideox-5b-i2v:
+    repo: THUDM/CogVideoX-5b-I2V
+    type: video
+    gated: false
+    enabled: true
 
 services:
   invokeai:
