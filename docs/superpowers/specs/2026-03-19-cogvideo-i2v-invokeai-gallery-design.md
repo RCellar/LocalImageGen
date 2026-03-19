@@ -210,7 +210,7 @@ Add the `cogvideox-5b-i2v` model entry so new setups include it by default.
 2. Generate an image.
 3. Verify: image appears in gallery without manual refresh.
 4. Verify: thumbnail renders in gallery grid.
-5. Verify: image file exists on host at `outputs/images/`.
+5. Verify: if using Option A (bind mount), image file exists on host at `outputs/images/`. If using Option B (no bind mount), images are accessible only via the InvokeAI gallery UI.
 6. Restart the container — verify gallery still shows previous generations.
 7. Repeat under CDI fallback: stop, force CDI path, regenerate, verify gallery works.
 
