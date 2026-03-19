@@ -79,7 +79,7 @@ graph TB
 | **NVIDIA GPU** | 8GB+ VRAM recommended (tested on RTX 4080 16GB) |
 | **NVIDIA Driver** | `nvidia-smi` must work. Fedora: `dnf install akmod-nvidia` |
 | **NVIDIA Container Toolkit** | Fedora: `dnf install nvidia-container-toolkit` then `sudo nvidia-ctk cdi generate --output=/etc/cdi/nvidia.yaml` |
-| **Podman + Podman Compose** *or* **Docker + Docker Compose** | Podman preferred. Runtime is auto-detected. |
+| **Podman + Podman Compose** *or* **Docker + Docker Compose** | Tested on Podman. Runtime is auto-detected. |
 | **Python 3 + PyYAML** | Fedora: `dnf install python3-pyyaml` |
 | **huggingface-cli** | `pip install huggingface-hub[cli]` — required for model downloads |
 
