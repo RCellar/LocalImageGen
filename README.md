@@ -21,8 +21,8 @@ graph TB
         subgraph Storage["Bind Mounts"]
             models["models/
             SD 3.5 Medium (~46GB)
-            CogVideoX-5B (~21GB)"]
-            img_out["outputs/images/"]
+            CogVideoX-5B (~21GB)
+            CogVideoX-5B I2V (~25GB)"]
             vid_out["outputs/videos/"]
         end
     end
@@ -55,7 +55,6 @@ graph TB
     env --> Compose
     models -- "read-write" --> InvokeAI
     models -- "read-only" --> CogVideoX
-    img_out --- InvokeAI
     vid_out --- CogVideoX
     GPU -- "deploy reservation
     or CDI fallback" --> InvokeAI
@@ -111,7 +110,7 @@ This will:
 1. Verify all prerequisites are installed
 2. Create `config.yaml` from the template (if not present)
 3. Prompt for HuggingFace login if gated models are enabled (SD 3.5 Medium requires acceptance of the [Stability AI license](https://huggingface.co/stabilityai/stable-diffusion-3.5-medium))
-4. Download models (~67GB total: ~46GB for SD 3.5 Medium, ~21GB for CogVideoX-5B)
+4. Download models (~92GB total: ~46GB for SD 3.5 Medium, ~21GB for CogVideoX-5B, ~25GB for CogVideoX-5B I2V)
 5. Build/pull container images
 6. Run a GPU smoke test
 
@@ -128,7 +127,9 @@ models:
   sd3.5-medium:
     enabled: true           # Toggle Stable Diffusion
   cogvideox-5b:
-    enabled: true           # Toggle CogVideoX
+    enabled: true           # Toggle CogVideoX (text-to-video)
+  cogvideox-5b-i2v:
+    enabled: true           # Toggle CogVideoX (image-to-video)
 
 services:
   invokeai:
@@ -152,6 +153,17 @@ gpu:
 scripts/start.sh
 ```
 
+When both services are enabled, the start script prompts you to choose which to launch:
+
+```
+Which services would you like to start?
+  1) InvokeAI only (image generation)
+  2) CogVideoX only (video generation)
+  3) Both (requires sufficient VRAM)
+```
+
+Use `scripts/start.sh --all` to bypass the prompt and launch all enabled services.
+
 The start script parses your configuration, checks GPU memory, launches the enabled services, validates GPU access inside containers, and waits for health checks before printing the service URLs.
 
 ### Stopping Services
@@ -172,20 +184,35 @@ Pulls the latest container images and re-downloads models if needed.
 
 ### Accessing Outputs
 
-Generated content is saved to bind-mounted directories on the host:
+- **Images:** Accessible through the InvokeAI gallery UI at http://localhost:9090. Images are stored in the `invokeai-data` named volume and persist across container restarts. Individual images can be downloaded from the gallery.
+- **Videos:** Saved to `outputs/videos/` on the host filesystem as `.mp4` files.
 
-- **Images:** `outputs/images/`
-- **Videos:** `outputs/videos/`
+### InvokeAI — First-Time Model Import
+
+After starting InvokeAI for the first time, you need to import the model:
+
+1. Open http://localhost:9090
+2. Navigate to **Model Manager** (settings icon)
+3. Select **Add Model → From Local Storage**
+4. Enter the path: `/models/sd3.5-medium`
+5. **Important:** Check the **"In-place install"** checkbox — otherwise InvokeAI will move the model files out of the shared directory
+
+### CogVideoX — Image-to-Video
+
+The Image to Video tab requires the separate `cogvideox-5b-i2v` model. If the model is not downloaded, the tab displays a message directing you to run setup. Input images are automatically resized to the model's expected 720x480 resolution.
 
 ## VRAM Considerations
 
 | Service | VRAM Usage |
 |---|---|
 | SD 3.5 Medium (FP16) | ~6 GB |
-| CogVideoX-5B (BF16) | ~5 GB |
+| CogVideoX-5B text-to-video (BF16) | ~5 GB |
+| CogVideoX-5B image-to-video (BF16) | ~5 GB |
 | CogVideoX-5B (INT8) | ~4.4 GB |
 
-Running both services simultaneously requires ~11GB+ VRAM. If you have limited VRAM, consider running one service at a time or enabling INT8 quantization for CogVideoX (`quantization: int8` in config).
+Running both services simultaneously requires ~11GB+ VRAM. The start script will prompt you to choose which services to launch when both are enabled. If you have limited VRAM, consider running one service at a time or enabling INT8 quantization for CogVideoX (`quantization: int8` in config).
+
+Only one CogVideoX pipeline (text-to-video or image-to-video) is loaded at a time. Switching between tabs triggers a pipeline swap to conserve VRAM.
 
 ## Project Structure
 
@@ -236,7 +263,7 @@ To remove generated content:
 rm -rf outputs/*
 ```
 
-To fully reset (models ~67GB will need to be re-downloaded):
+To fully reset (models ~92GB will need to be re-downloaded):
 
 ```bash
 rm -rf models/ outputs/ .env
@@ -271,6 +298,6 @@ This project is licensed under the [MIT License](LICENSE).
 The models downloaded by this project have their own licenses with specific terms and restrictions. By using this project, you are responsible for reviewing and complying with each model's license:
 
 - **Stable Diffusion 3.5 Medium** — [Stability AI Community License](https://huggingface.co/stabilityai/stable-diffusion-3.5-medium). Free for research and non-commercial use; commercial use free under $1M revenue/year.
-- **CogVideoX-5B** — [CogVideoX License](https://huggingface.co/THUDM/CogVideoX-5b). Free for academic research; commercial use requires registration.
+- **CogVideoX-5B / CogVideoX-5B-I2V** — [CogVideoX License](https://huggingface.co/THUDM/CogVideoX-5b). Free for academic research; commercial use requires registration.
 
 This project does not bundle or redistribute any models or container images — they are downloaded directly from their respective sources at setup time.
