@@ -54,11 +54,12 @@ def _get_pipeline(mode: str):
     if _current_mode == mode and _current_pipe is not None:
         return _current_pipe
 
-    # Unload current pipeline
+    # Unload current pipeline — skip .to("cpu") since sequential CPU offload
+    # leaves meta tensors that can't be moved. Just delete and let GC reclaim.
     if _current_pipe is not None:
         print(f"Unloading {_current_mode} pipeline...")
-        _current_pipe.to("cpu")
         del _current_pipe
+        _current_pipe = None
         gc.collect()
         torch.cuda.empty_cache()
 
@@ -78,7 +79,12 @@ def _get_pipeline(mode: str):
         quantize_(pipe.transformer, int8_weight_only())
         print("Applied INT8 quantization via torchao")
 
-    pipe.enable_sequential_cpu_offload()
+    # I2V uses model-level offload (moves whole models to GPU one at a time).
+    # txt2vid uses sequential offload (more granular, lower peak VRAM).
+    if mode == "img2vid":
+        pipe.enable_model_cpu_offload()
+    else:
+        pipe.enable_sequential_cpu_offload()
     pipe.vae.enable_slicing()
     pipe.vae.enable_tiling()
 
